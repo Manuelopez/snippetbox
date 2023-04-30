@@ -16,18 +16,12 @@ func (app *application) home(w http.ResponseWriter, r *http.Request){
     }
 
 
-    // initialize a slice containing the paths to the two files. TIs imporant
-    //    to note that the file containing our base tempalte must be first
-    // file in the slcie
     files := []string{
         "./ui/html/base.html",
         "./ui/html/partials/nav.html",
         "./ui/html/pages/home.html",
     }
 
-    // use the template.ParseFiles() function to read the files and store the
-    //    templates in  a temaple set. Notice that we can pass the silce of file
-    //    paths as a variadic paramer
     ts, err := template.ParseFiles(files...)
 
     if err != nil{
@@ -36,7 +30,6 @@ func (app *application) home(w http.ResponseWriter, r *http.Request){
     }
 
 
-    // use the execute tempalte() method to write the contet of the "base"
     err = ts.ExecuteTemplate(w, "base", nil)
     if err != nil{
         app.serverError(w, err)
