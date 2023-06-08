@@ -30,3 +30,6 @@ addr := flag.String("addr", ":4000", "HTTP network address")
 - log, is the standrard go logger, by defualt prefixes the messages with the local date and time and writes them to the sntandard error stream.
 - to redirect the stdout and stderr streams to on-disk files when starting the apliction do
     -“go run ./cmd/web >>/tmp/info.log 2>>/tmp/error.log”
+
+# sql 
+- mysql driver in golang provides a pool of connections
