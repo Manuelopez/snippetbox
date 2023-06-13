@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"time"
 
 	"github.com/go-playground/form/v4"
+	"github.com/justinas/nosurf"
 )
 
 func (app *application) render(w http.ResponseWriter, status int, page string, data *templateData) {
@@ -17,17 +19,17 @@ func (app *application) render(w http.ResponseWriter, status int, page string, d
 		app.serverError(w, err)
 		return
 	}
-    buf := new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 
-    err := ts.ExecuteTemplate(buf, "base", data)
-    if err != nil{
-        app.serverError(w, err)
-        return
-    }
+	err := ts.ExecuteTemplate(buf, "base", data)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
 
-    w.WriteHeader(status)
+	w.WriteHeader(status)
 
-    buf.WriteTo(w)
+	buf.WriteTo(w)
 
 }
 
@@ -45,21 +47,34 @@ func (app *application) notFound(w http.ResponseWriter) {
 	app.clientError(w, http.StatusNotFound)
 }
 
-func (app *application) decodePostForm(r *http.Request, dst any) error{
-    err := r.ParseForm()
-    if err != nil{
-        return err
-    }
+func (app *application) decodePostForm(r *http.Request, dst any) error {
+	err := r.ParseForm()
+	if err != nil {
+		return err
+	}
 
-    err = app.formDecoder.Decode(dst, r.PostForm)
-    if err != nil{
-        var invalidDecodeError * form.InvalidDecoderError
-        if errors.As(err, &invalidDecodeError){
-            panic(err)
-        }
+	err = app.formDecoder.Decode(dst, r.PostForm)
+	if err != nil {
+		var invalidDecodeError *form.InvalidDecoderError
+		if errors.As(err, &invalidDecodeError) {
+			panic(err)
+		}
 
-        return err
-    }
+		return err
+	}
 
-    return nil
+	return nil
+}
+
+func (app *application) newTemplateData(r *http.Request) *templateData {
+	return &templateData{
+		CurrentYear:     time.Now().Year(),
+		Flash:           app.sessionManager.PopString(r.Context(), "flash"),
+		IsAuthenticated: app.isAthenticated(r),
+		CSRFToken:       nosurf.Token(r),
+	}
+}
+
+func (app *application) isAthenticated(r *http.Request) bool {
+	return app.sessionManager.Exists(r.Context(), "authenticatedUserID")
 }

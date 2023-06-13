@@ -28,6 +28,12 @@ type userSignupForm struct {
     validator.Validator `form:"-"`
 }
 
+type userLoginForm struct{
+    Email string `form:"email"`
+    Password string `form:"password"`
+    validator.Validator `form:"-"`
+}
+
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 	snippets, err := app.snippets.Latest()
@@ -164,13 +170,57 @@ func (app *application) userSignupPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) userLogin(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Display a html from loggin in  a user...")
+    data := app.newTemplateData(r)
+    data.Form = userLoginForm{}
+    app.render(w, http.StatusOK, "login.html", data)
 }
 
 func (app *application) userLoginPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Authenticate and login the user")
+    form := userLoginForm{}
+
+    app.decodePostForm(r, &form)
+    form.CheckField(validator.NotBlank(form.Email), "email", "this field cannot be blank")
+    form.CheckField(validator.NotBlank(form.Password), "password", "this field cannot be blank")
+    form.CheckField(validator.Matches(form.Email, validator.EmailRX), "email", "this must be a valid email")
+
+    if !form.Valid(){
+        data := app.newTemplateData(r)
+        data.Form = form
+        app.render(w, http.StatusUnprocessableEntity, "login.html", data)
+        return
+    }
+
+    id, err := app.users.Authenticate(form.Email, form.Password)
+
+    if err != nil{
+        if errors.Is(err, models.ErrInvalidCredentials){
+            data := app.newTemplateData(r)
+            form.AddNonFiledError("email or password is incorrect")
+            data.Form = form
+            app.render(w, http.StatusUnprocessableEntity, "login.html", data)
+            return
+        }else{
+            app.serverError(w, err)
+            return
+        }
+    }
+    err = app.sessionManager.RenewToken(r.Context())
+    if err != nil{
+        app.serverError(w, err)
+        return
+    }
+
+    app.sessionManager.Put(r.Context(), "authenticatedUserID", id)
+    http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
 }
 
 func (app *application) userLogoutPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Logout the user...")
+
+    err := app.sessionManager.RenewToken(r.Context())
+    if err != nil{
+        app.serverError(w, err)
+        return
+    }
+    app.sessionManager.Remove(r.Context(),"authenticatedUserID")
+    http.Redirect(w, r, "/", http.StatusSeeOther)
 }
