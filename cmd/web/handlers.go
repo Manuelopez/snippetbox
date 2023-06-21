@@ -168,6 +168,7 @@ func (app *application) userSignupPost(w http.ResponseWriter, r *http.Request) {
             return
         }
     }
+
     app.sessionManager.Put(r.Context(), "flash", "Your signip was succesfull.Please login.")
     http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 }
